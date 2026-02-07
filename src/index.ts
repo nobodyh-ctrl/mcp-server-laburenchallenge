@@ -11,6 +11,7 @@ import {
 	handleRemoveFromCart,
 } from "./api/carts";
 import { handleGetOrCreateClient } from "./api/clients";
+import { handleChatwootWebhook } from "./api/chatwoot";
 import type { Env } from "./types/env";
 
 // Define our MCP agent with Supabase tools
@@ -32,6 +33,11 @@ export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext) {
 		const url = new URL(request.url);
 		const supabase = createSupabaseClient(env);
+
+		// Chatwoot webhook
+		if (url.pathname === "/api/chatwoot/webhook" && request.method === "POST") {
+			return handleChatwootWebhook(request, env);
+		}
 
 		// Client management
 		if (url.pathname === "/api/clients/get-or-create" && request.method === "POST") {
