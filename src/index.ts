@@ -12,9 +12,6 @@ import {
 } from "./api/carts";
 import type { Env } from "./types/env";
 
-// Variable global para almacenar la URL base
-let globalBaseUrl: string = "";
-
 // Define our MCP agent with Supabase tools
 export class MyMCP extends McpAgent {
 	server = new McpServer({
@@ -23,8 +20,10 @@ export class MyMCP extends McpAgent {
 	});
 
 	async init() {
-		// Registrar las tools de base de datos con una función que retorna la URL base
-		registerDatabaseTools(this.server, () => globalBaseUrl);
+		// Obtener la URL base desde las props del contexto de ejecución
+		const baseUrl = ((this as any).props as any)?.BASE_URL || "";
+		// Registrar las tools de base de datos pasando la URL base
+		registerDatabaseTools(this.server, () => baseUrl);
 	}
 }
 
@@ -38,7 +37,7 @@ export default {
 			return handleGetProductById(productIdMatch[1], supabase);
 		}
 
-		
+
 		if (url.pathname === "/api/products" && request.method === "GET") {
 			return handleGetProducts(request, supabase);
 		}
@@ -52,13 +51,13 @@ export default {
 			return handleAddToCart(addToCartMatch[1], request, supabase);
 		}
 
-	
+
 		const getCartMatch = url.pathname.match(/^\/api\/carts\/(\d+)$/);
 		if (getCartMatch && request.method === "GET") {
 			return handleGetCart(getCartMatch[1], supabase);
 		}
 
-		
+
 		const updateCartItemMatch = url.pathname.match(/^\/api\/carts\/(\d+)\/items\/(\d+)$/);
 		if (updateCartItemMatch && request.method === "PATCH") {
 			return handleUpdateCartItem(updateCartItemMatch[1], updateCartItemMatch[2], request, supabase);
@@ -71,9 +70,14 @@ export default {
 
 		// MCP Server
 		if (url.pathname === "/mcp") {
-			// Guardar la URL base (origen) para que las tools puedan hacer fetch
-			globalBaseUrl = url.origin;
-			return MyMCP.serve("/mcp").fetch(request, env, ctx);
+			// Inyectar la URL base en el contexto usando props
+			const context = Object.assign(Object.create(ctx), ctx, {
+				props: {
+					...(ctx as any).props,
+					BASE_URL: url.origin,
+				},
+			});
+			return MyMCP.serve("/mcp").fetch(request, env, context);
 		}
 
 		return new Response("Not found", { status: 404 });
