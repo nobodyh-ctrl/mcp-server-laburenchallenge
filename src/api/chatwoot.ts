@@ -21,7 +21,7 @@ interface ChatwootWebhookEvent {
 
 export async function handleChatwootWebhook(
 	request: Request,
-	env: Env
+	_env: Env
 ): Promise<Response> {
 	try {
 		const event = (await request.json()) as ChatwootWebhookEvent;
@@ -45,32 +45,14 @@ export async function handleChatwootWebhook(
 
 		console.log(`💬 Mensaje de ${senderName}: ${messageContent}`);
 
-		// TODO: Invocar el agente MCP aquí para procesar el mensaje
-		// El agente tiene acceso a todas las tools (productos, carrito, chatwoot)
-		// y puede responder inteligentemente al cliente
+		// Este webhook solo registra eventos para debugging
+		// El agente externo (dashboard.laburen.com) es el que debe:
+		// 1. Recibir webhooks de Chatwoot en su propio endpoint
+		// 2. Conectarse a este MCP server en /mcp
+		// 3. Usar las tools disponibles (send_chatwoot_message, list_products, etc.)
+		// 4. Responder al cliente
 
-		// Por ahora, respondemos con un mensaje simple hasta integrar el agente
-		const respuesta = `Hola ${senderName}! Recibí tu mensaje: "${messageContent}".
-
-Para ayudarte necesito tu email. Una vez que lo tengas configurado en Chatwoot, podré:
-- Mostrarte productos disponibles
-- Crear tu carrito de compras
-- Procesar pedidos
-
-El agente está listo con estas tools:
-- list_products, get_product_details
-- get_or_create_client
-- add_to_cart, get_cart, update_cart_item, remove_from_cart
-- send_chatwoot_message, add_conversation_labels, update_conversation_status`;
-
-		// Enviar respuesta a Chatwoot
-		await sendChatwootMessage(
-			conversationId,
-			respuesta,
-			env
-		);
-
-		return new Response("OK", { status: 200 });
+		return new Response("OK - Evento registrado", { status: 200 });
 	} catch (error) {
 		console.error("❌ Error procesando webhook:", error);
 		// Siempre devolver 200 para que Chatwoot no reintente
