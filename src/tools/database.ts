@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-export function registerDatabaseTools(server: McpServer, baseUrl: string) {
+export function registerDatabaseTools(server: McpServer, getBaseUrl: () => string) {
 	// Tool para listar productos con filtros opcionales
 	server.tool(
 		"list_products",
@@ -17,6 +17,7 @@ export function registerDatabaseTools(server: McpServer, baseUrl: string) {
 				if (description) params.append("description", description);
 
 				// Hacer fetch al endpoint REST usando la URL base del worker
+				const baseUrl = getBaseUrl();
 				const response = await fetch(
 					`${baseUrl}/api/products${params.toString() ? `?${params.toString()}` : ""}`
 				);
@@ -69,6 +70,7 @@ export function registerDatabaseTools(server: McpServer, baseUrl: string) {
 		async ({ productId }) => {
 			try {
 				// Hacer fetch al endpoint REST para obtener un producto específico
+				const baseUrl = getBaseUrl();
 				const response = await fetch(`${baseUrl}/api/products/${productId}`);
 
 				if (!response.ok) {
@@ -111,6 +113,7 @@ export function registerDatabaseTools(server: McpServer, baseUrl: string) {
 	// Tool para crear un nuevo carrito
 	server.tool("create_cart", {}, async () => {
 		try {
+			const baseUrl = getBaseUrl();
 			const response = await fetch(`${baseUrl}/api/carts`, {
 				method: "POST",
 			});
@@ -162,6 +165,7 @@ export function registerDatabaseTools(server: McpServer, baseUrl: string) {
 		},
 		async ({ cartId, productVariantId, qty }) => {
 			try {
+				const baseUrl = getBaseUrl();
 				const response = await fetch(`${baseUrl}/api/carts/${cartId}/items`, {
 					method: "POST",
 					headers: {
@@ -219,6 +223,7 @@ export function registerDatabaseTools(server: McpServer, baseUrl: string) {
 		},
 		async ({ cartId }) => {
 			try {
+				const baseUrl = getBaseUrl();
 				const response = await fetch(`${baseUrl}/api/carts/${cartId}`);
 
 				if (!response.ok) {
@@ -273,6 +278,7 @@ export function registerDatabaseTools(server: McpServer, baseUrl: string) {
 		},
 		async ({ cartId, itemId, qty }) => {
 			try {
+				const baseUrl = getBaseUrl();
 				const response = await fetch(`${baseUrl}/api/carts/${cartId}/items/${itemId}`, {
 					method: "PATCH",
 					headers: {
@@ -330,6 +336,7 @@ export function registerDatabaseTools(server: McpServer, baseUrl: string) {
 		},
 		async ({ cartId, itemId }) => {
 			try {
+				const baseUrl = getBaseUrl();
 				const response = await fetch(`${baseUrl}/api/carts/${cartId}/items/${itemId}`, {
 					method: "DELETE",
 				});

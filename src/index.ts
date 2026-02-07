@@ -23,8 +23,8 @@ export class MyMCP extends McpAgent {
 	});
 
 	async init() {
-		// Registrar las tools de base de datos con la URL base
-		registerDatabaseTools(this.server, globalBaseUrl);
+		// Registrar las tools de base de datos con una función que retorna la URL base
+		registerDatabaseTools(this.server, () => globalBaseUrl);
 	}
 }
 
@@ -33,41 +33,37 @@ export default {
 		const url = new URL(request.url);
 		const supabase = createSupabaseClient(env);
 
-		// Endpoint REST: GET /api/products/:id - Obtener producto específico
 		const productIdMatch = url.pathname.match(/^\/api\/products\/(\d+)$/);
 		if (productIdMatch && request.method === "GET") {
 			return handleGetProductById(productIdMatch[1], supabase);
 		}
 
-		// Endpoint REST: GET /api/products - Listar productos
+		
 		if (url.pathname === "/api/products" && request.method === "GET") {
 			return handleGetProducts(request, supabase);
 		}
 
-		// Endpoint REST: POST /api/carts - Crear nuevo carrito
 		if (url.pathname === "/api/carts" && request.method === "POST") {
 			return handleCreateCart(supabase);
 		}
 
-		// Endpoint REST: POST /api/carts/:id/items - Agregar item al carrito
 		const addToCartMatch = url.pathname.match(/^\/api\/carts\/(\d+)\/items$/);
 		if (addToCartMatch && request.method === "POST") {
 			return handleAddToCart(addToCartMatch[1], request, supabase);
 		}
 
-		// Endpoint REST: GET /api/carts/:id - Obtener carrito con items
+	
 		const getCartMatch = url.pathname.match(/^\/api\/carts\/(\d+)$/);
 		if (getCartMatch && request.method === "GET") {
 			return handleGetCart(getCartMatch[1], supabase);
 		}
 
-		// Endpoint REST: PATCH /api/carts/:cartId/items/:itemId - Actualizar cantidad de item
+		
 		const updateCartItemMatch = url.pathname.match(/^\/api\/carts\/(\d+)\/items\/(\d+)$/);
 		if (updateCartItemMatch && request.method === "PATCH") {
 			return handleUpdateCartItem(updateCartItemMatch[1], updateCartItemMatch[2], request, supabase);
 		}
 
-		// Endpoint REST: DELETE /api/carts/:cartId/items/:itemId - Eliminar item del carrito
 		const removeFromCartMatch = url.pathname.match(/^\/api\/carts\/(\d+)\/items\/(\d+)$/);
 		if (removeFromCartMatch && request.method === "DELETE") {
 			return handleRemoveFromCart(removeFromCartMatch[1], removeFromCartMatch[2], supabase);
