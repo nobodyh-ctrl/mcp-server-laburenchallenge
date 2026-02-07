@@ -159,7 +159,7 @@ export function registerDatabaseTools(server: McpServer, getBaseUrl: () => strin
 	server.tool(
 		"add_to_cart",
 		{
-			cartId: z.number().describe("ID del carrito"),
+			cartId: z.union([z.number(), z.string()]).describe("ID del carrito (puede ser número o UUID)"),
 			productVariantId: z.number().describe("ID de la variante del producto (incluye color y talla)"),
 			qty: z.number().min(1).describe("Cantidad del producto"),
 		},
@@ -219,7 +219,7 @@ export function registerDatabaseTools(server: McpServer, getBaseUrl: () => strin
 	server.tool(
 		"get_cart",
 		{
-			cartId: z.number().describe("ID del carrito a consultar"),
+			cartId: z.union([z.number(), z.string()]).describe("ID del carrito a consultar (puede ser número o UUID)"),
 		},
 		async ({ cartId }) => {
 			try {
@@ -272,7 +272,7 @@ export function registerDatabaseTools(server: McpServer, getBaseUrl: () => strin
 	server.tool(
 		"update_cart_item",
 		{
-			cartId: z.number().describe("ID del carrito"),
+			cartId: z.union([z.number(), z.string()]).describe("ID del carrito (puede ser número o UUID)"),
 			itemId: z.number().describe("ID del item a actualizar"),
 			qty: z.number().min(1).describe("Nueva cantidad del producto"),
 		},
@@ -331,7 +331,7 @@ export function registerDatabaseTools(server: McpServer, getBaseUrl: () => strin
 	server.tool(
 		"remove_from_cart",
 		{
-			cartId: z.number().describe("ID del carrito"),
+			cartId: z.union([z.number(), z.string()]).describe("ID del carrito (puede ser número o UUID)"),
 			itemId: z.number().describe("ID del item a eliminar"),
 		},
 		async ({ cartId, itemId }) => {

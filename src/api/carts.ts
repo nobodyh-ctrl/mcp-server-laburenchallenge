@@ -52,9 +52,10 @@ export async function handleAddToCart(
 	supabase: SupabaseClient
 ): Promise<Response> {
 	try {
-		const id = Number.parseInt(cartId, 10);
+		// Soportar tanto números como UUIDs
+		const id = /^[0-9a-fA-F-]+$/.test(cartId) ? cartId : Number.parseInt(cartId, 10);
 
-		if (Number.isNaN(id)) {
+		if (typeof id === 'number' && Number.isNaN(id)) {
 			return new Response(
 				JSON.stringify({
 					error: "ID de carrito inválido",
@@ -247,9 +248,10 @@ export async function handleAddToCart(
 
 export async function handleGetCart(cartId: string, supabase: SupabaseClient): Promise<Response> {
 	try {
-		const id = Number.parseInt(cartId, 10);
+		// Soportar tanto números como UUIDs
+		const id = /^[0-9a-fA-F-]+$/.test(cartId) ? cartId : Number.parseInt(cartId, 10);
 
-		if (Number.isNaN(id)) {
+		if (typeof id === 'number' && Number.isNaN(id)) {
 			return new Response(
 				JSON.stringify({
 					error: "ID de carrito inválido",
@@ -360,10 +362,11 @@ export async function handleUpdateCartItem(
 	supabase: SupabaseClient
 ): Promise<Response> {
 	try {
-		const cartIdNum = Number.parseInt(cartId, 10);
+		// Soportar tanto números como UUIDs para cartId
+		const cartIdValue = /^[0-9a-fA-F-]+$/.test(cartId) ? cartId : Number.parseInt(cartId, 10);
 		const itemIdNum = Number.parseInt(itemId, 10);
 
-		if (Number.isNaN(cartIdNum) || Number.isNaN(itemIdNum)) {
+		if ((typeof cartIdValue === 'number' && Number.isNaN(cartIdValue)) || Number.isNaN(itemIdNum)) {
 			return new Response(
 				JSON.stringify({
 					error: "ID de carrito o item inválido",
@@ -400,13 +403,13 @@ export async function handleUpdateCartItem(
 			`
 			)
 			.eq("id", itemIdNum)
-			.eq("cart_id", cartIdNum)
+			.eq("cart_id", cartIdValue)
 			.single();
 
 		if (checkError || !existingItem) {
 			return new Response(
 				JSON.stringify({
-					error: `No se encontró el item ${itemIdNum} en el carrito ${cartIdNum}`,
+					error: `No se encontró el item ${itemIdNum} en el carrito ${cartIdValue}`,
 				}),
 				{
 					status: 404,
@@ -481,10 +484,11 @@ export async function handleRemoveFromCart(
 	supabase: SupabaseClient
 ): Promise<Response> {
 	try {
-		const cartIdNum = Number.parseInt(cartId, 10);
+		// Soportar tanto números como UUIDs para cartId
+		const cartIdValue = /^[0-9a-fA-F-]+$/.test(cartId) ? cartId : Number.parseInt(cartId, 10);
 		const itemIdNum = Number.parseInt(itemId, 10);
 
-		if (Number.isNaN(cartIdNum) || Number.isNaN(itemIdNum)) {
+		if ((typeof cartIdValue === 'number' && Number.isNaN(cartIdValue)) || Number.isNaN(itemIdNum)) {
 			return new Response(
 				JSON.stringify({
 					error: "ID de carrito o item inválido",
@@ -501,13 +505,13 @@ export async function handleRemoveFromCart(
 			.from("cart_items")
 			.select("*")
 			.eq("id", itemIdNum)
-			.eq("cart_id", cartIdNum)
+			.eq("cart_id", cartIdValue)
 			.single();
 
 		if (checkError || !existingItem) {
 			return new Response(
 				JSON.stringify({
-					error: `No se encontró el item ${itemIdNum} en el carrito ${cartIdNum}`,
+					error: `No se encontró el item ${itemIdNum} en el carrito ${cartIdValue}`,
 				}),
 				{
 					status: 404,
