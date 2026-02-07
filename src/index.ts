@@ -10,6 +10,7 @@ import {
 	handleUpdateCartItem,
 	handleRemoveFromCart,
 } from "./api/carts";
+import { handleGetOrCreateClient } from "./api/clients";
 import type { Env } from "./types/env";
 
 // Define our MCP agent with Supabase tools
@@ -31,6 +32,11 @@ export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext) {
 		const url = new URL(request.url);
 		const supabase = createSupabaseClient(env);
+
+		// Client management
+		if (url.pathname === "/api/clients/get-or-create" && request.method === "POST") {
+			return handleGetOrCreateClient(request, supabase);
+		}
 
 		const productIdMatch = url.pathname.match(/^\/api\/products\/(\d+)$/);
 		if (productIdMatch && request.method === "GET") {

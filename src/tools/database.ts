@@ -377,4 +377,64 @@ export function registerDatabaseTools(server: McpServer, getBaseUrl: () => strin
 			}
 		}
 	);
+
+	// Tool para obtener o crear un cliente y su carrito activo
+	server.tool(
+		"get_or_create_client",
+		{
+			name: z.string().describe("Nombre del cliente"),
+			email: z.string().email().describe("Email del cliente (debe ser válido y único)"),
+		},
+		async ({ name, email }) => {
+			try {
+				const baseUrl = getBaseUrl();
+				const response = await fetch(`${baseUrl}/api/clients/get-or-create`, {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						name,
+						email,
+					}),
+				});
+
+				if (!response.ok) {
+					const errorData = (await response.json()) as { error?: string };
+					return {
+						content: [
+							{
+								type: "text",
+								text: `Error: ${errorData.error || "Error al obtener o crear el cliente"}`,
+							},
+						],
+					};
+				}
+
+				const result = (await response.json()) as {
+					clientId: number;
+					cartId: number;
+					cartStatus: string;
+				};
+
+				return {
+					content: [
+						{
+							type: "text",
+							text: `Cliente procesado exitosamente:\n\nID del cliente: ${result.clientId}\nID del carrito: ${result.cartId}\nEstado del carrito: ${result.cartStatus}`,
+						},
+					],
+				};
+			} catch (error) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: `Error: ${error instanceof Error ? error.message : "Error desconocido"}`,
+						},
+					],
+				};
+			}
+		}
+	);
 }
