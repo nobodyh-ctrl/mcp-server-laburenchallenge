@@ -52,24 +52,24 @@ export default {
 			return handleCreateCart(supabase);
 		}
 
-		const addToCartMatch = url.pathname.match(/^\/api\/carts\/(\d+)\/items$/);
+		const addToCartMatch = url.pathname.match(/^\/api\/carts\/([a-zA-Z0-9-]+)\/items$/);
 		if (addToCartMatch && request.method === "POST") {
 			return handleAddToCart(addToCartMatch[1], request, supabase);
 		}
 
 
-		const getCartMatch = url.pathname.match(/^\/api\/carts\/(\d+)$/);
+		const getCartMatch = url.pathname.match(/^\/api\/carts\/([a-zA-Z0-9-]+)$/);
 		if (getCartMatch && request.method === "GET") {
 			return handleGetCart(getCartMatch[1], supabase);
 		}
 
 
-		const updateCartItemMatch = url.pathname.match(/^\/api\/carts\/(\d+)\/items\/(\d+)$/);
+		const updateCartItemMatch = url.pathname.match(/^\/api\/carts\/([a-zA-Z0-9-]+)\/items\/(\d+)$/);
 		if (updateCartItemMatch && request.method === "PATCH") {
 			return handleUpdateCartItem(updateCartItemMatch[1], updateCartItemMatch[2], request, supabase);
 		}
 
-		const removeFromCartMatch = url.pathname.match(/^\/api\/carts\/(\d+)\/items\/(\d+)$/);
+		const removeFromCartMatch = url.pathname.match(/^\/api\/carts\/([a-zA-Z0-9-]+)\/items\/(\d+)$/);
 		if (removeFromCartMatch && request.method === "DELETE") {
 			return handleRemoveFromCart(removeFromCartMatch[1], removeFromCartMatch[2], supabase);
 		}
