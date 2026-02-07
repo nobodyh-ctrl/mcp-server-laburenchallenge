@@ -37,7 +37,6 @@ export async function handleChatwootWebhook(
 		const conversationId = event.conversation?.id;
 		const messageContent = event.content;
 		const senderName = event.sender?.name || "Cliente";
-		const senderEmail = event.sender?.email;
 
 		if (!conversationId || !messageContent) {
 			console.log("⚠️  Falta conversationId o contenido del mensaje");
@@ -46,9 +45,23 @@ export async function handleChatwootWebhook(
 
 		console.log(`💬 Mensaje de ${senderName}: ${messageContent}`);
 
-		// TODO: Aquí invocarías tu MCP agent para procesar el mensaje
-		// Por ahora, solo respondemos con un mensaje simple
-		const respuesta = `Hola ${senderName}! Recibí tu mensaje: "${messageContent}". Estoy procesando tu solicitud...`;
+		// TODO: Invocar el agente MCP aquí para procesar el mensaje
+		// El agente tiene acceso a todas las tools (productos, carrito, chatwoot)
+		// y puede responder inteligentemente al cliente
+
+		// Por ahora, respondemos con un mensaje simple hasta integrar el agente
+		const respuesta = `Hola ${senderName}! Recibí tu mensaje: "${messageContent}".
+
+Para ayudarte necesito tu email. Una vez que lo tengas configurado en Chatwoot, podré:
+- Mostrarte productos disponibles
+- Crear tu carrito de compras
+- Procesar pedidos
+
+El agente está listo con estas tools:
+- list_products, get_product_details
+- get_or_create_client
+- add_to_cart, get_cart, update_cart_item, remove_from_cart
+- send_chatwoot_message, add_conversation_labels, update_conversation_status`;
 
 		// Enviar respuesta a Chatwoot
 		await sendChatwootMessage(

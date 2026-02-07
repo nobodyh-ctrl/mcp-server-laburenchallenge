@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { McpAgent } from "agents/mcp";
 import { createSupabaseClient } from "./config/supabase";
 import { registerDatabaseTools } from "./tools/database";
+import { registerChatwootTools } from "./tools/chatwoot";
 import { handleGetProducts, handleGetProductById } from "./api/products";
 import {
 	handleCreateCart,
@@ -14,18 +15,25 @@ import { handleGetOrCreateClient } from "./api/clients";
 import { handleChatwootWebhook } from "./api/chatwoot";
 import type { Env } from "./types/env";
 
-// Define our MCP agent with Supabase tools
+// Define our MCP agent with Supabase and Chatwoot tools
 export class MyMCP extends McpAgent {
 	server = new McpServer({
-		name: "Supabase Database Agent",
+		name: "E-commerce Agent with Chatwoot",
 		version: "1.0.0",
 	});
 
 	async init() {
-		// Obtener la URL base desde las props del contexto de ejecución
+		// Obtener la URL base y env desde las props del contexto de ejecución
 		const baseUrl = ((this as any).props as any)?.BASE_URL || "";
+		const env = ((this as any).props as any)?.ENV;
+
 		// Registrar las tools de base de datos pasando la URL base
 		registerDatabaseTools(this.server, () => baseUrl);
+
+		// Registrar las tools de Chatwoot si tenemos acceso a env
+		if (env) {
+			registerChatwootTools(this.server, env);
+		}
 	}
 }
 
@@ -82,11 +90,12 @@ export default {
 
 		// MCP Server
 		if (url.pathname === "/mcp") {
-			// Inyectar la URL base en el contexto usando props
+			// Inyectar la URL base y env en el contexto usando props
 			const context = Object.assign(Object.create(ctx), ctx, {
 				props: {
 					...(ctx as any).props,
 					BASE_URL: url.origin,
+					ENV: env,
 				},
 			});
 			return MyMCP.serve("/mcp").fetch(request, env, context);
