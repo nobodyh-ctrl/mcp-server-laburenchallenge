@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { McpAgent } from "agents/mcp";
 import { createSupabaseClient } from "./config/supabase";
 import { registerDatabaseTools } from "./tools/database";
-import { registerChatwootTools } from "./tools/chatwoot";
+// import { registerChatwootTools } from "./tools/chatwoot"; // DESHABILITADO - La plataforma maneja Chatwoot directamente (backup en chatwoot.ts.backup)
 import { handleGetProducts, handleGetProductById } from "./api/products";
 import {
 	handleCreateCart,
@@ -23,17 +23,15 @@ export class MyMCP extends McpAgent {
 	});
 
 	async init() {
-		// Obtener la URL base y env desde las props del contexto de ejecución
+		// Obtener la URL base desde las props del contexto de ejecución
 		const baseUrl = ((this as any).props as any)?.BASE_URL || "";
-		const env = ((this as any).props as any)?.ENV;
 
 		// Registrar las tools de base de datos pasando la URL base
 		registerDatabaseTools(this.server, () => baseUrl);
 
-		// Registrar las tools de Chatwoot si tenemos acceso a env
-		if (env) {
-			registerChatwootTools(this.server, env);
-		}
+		// Tools de Chatwoot DESHABILITADAS
+		// La plataforma (dashboard.laburen.com) maneja Chatwoot directamente
+		// Backup disponible en: src/tools/chatwoot.ts.backup
 	}
 }
 
