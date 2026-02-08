@@ -6,4 +6,5 @@ export interface Env {
 	CHATWOOT_ACCOUNT_ID: string;
 	CHATWOOT_API_TOKEN: string;
 	LABUREN_API_KEY: string;
+	LABUREN_AGENT_ID: string;
 }

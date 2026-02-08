@@ -34,9 +34,6 @@ interface LaburenAgentResponse {
 	messageId: string;
 }
 
-const LABUREN_AGENT_ID = "cmla214tn1vevr0wynchplbx7";
-const LABUREN_API_URL = `https://dashboard.laburen.com/api/agents/${LABUREN_AGENT_ID}/query`;
-
 export async function handleChatwootAdapterWebhook(
 	request: Request,
 	env: Env
@@ -70,7 +67,10 @@ export async function handleChatwootAdapterWebhook(
 		// Llamar al agente de Laburen usando el endpoint /query
 		console.log("📤 Llamando al agente Laburen...");
 
-		const agentResponse = await fetch(LABUREN_API_URL, {
+		// Construir URL del agente usando variable de entorno
+		const laburenApiUrl = `https://dashboard.laburen.com/api/agents/${env.LABUREN_AGENT_ID}/query`;
+
+		const agentResponse = await fetch(laburenApiUrl, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
