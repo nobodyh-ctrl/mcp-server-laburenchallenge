@@ -34,7 +34,8 @@ interface LaburenAgentResponse {
 	messageId: string;
 }
 
-const LABUREN_AGENT_WEBHOOK_URL = "https://dashboard.laburen.com/api/agents/cmla214tn1vevr0wynchplbx7/chatwoot-laburen-webhook";
+const LABUREN_AGENT_ID = "cmla214tn1vevr0wynchplbx7";
+const LABUREN_API_URL = `https://dashboard.laburen.com/api/agents/${LABUREN_AGENT_ID}/query`;
 
 export async function handleChatwootAdapterWebhook(
 	request: Request,
@@ -66,15 +67,22 @@ export async function handleChatwootAdapterWebhook(
 		console.log(`💬 Mensaje de ${sender?.name}: ${messageContent}`);
 		console.log(`📋 Conversation ID: ${conversationId}`);
 
-		// Reenviar al webhook del agente de Laburen
-		console.log("📤 Reenviando a agente Laburen...");
+		// Llamar al agente de Laburen usando el endpoint /query
+		console.log("📤 Llamando al agente Laburen...");
 
-		const agentResponse = await fetch(LABUREN_AGENT_WEBHOOK_URL, {
+		const agentResponse = await fetch(LABUREN_API_URL, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
+				"Authorization": `Bearer ${env.LABUREN_API_KEY}`,
 			},
-			body: JSON.stringify(webhook),
+			body: JSON.stringify({
+				query: messageContent,
+				channel: "chatwoot",
+				conversationId: conversationId.toString(),
+				visitorId: sender?.phone_number || sender?.id.toString(),
+				context: `Mensaje de WhatsApp de ${sender?.name || "Cliente"}`,
+			}),
 		});
 
 		if (!agentResponse.ok) {
