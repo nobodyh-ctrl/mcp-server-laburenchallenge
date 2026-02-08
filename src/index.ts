@@ -72,7 +72,7 @@ export default {
 
 		const addToCartMatch = url.pathname.match(/^\/api\/carts\/([a-zA-Z0-9-]+)\/items$/);
 		if (addToCartMatch && request.method === "POST") {
-			return handleAddToCart(addToCartMatch[1], request, supabase);
+			return handleAddToCart(addToCartMatch[1], request, supabase, env);
 		}
 
 

@@ -1,4 +1,6 @@
 import { SupabaseClient } from "@supabase/supabase-js";
+import { addConversationLabels } from "./chatwoot";
+import type { Env } from "../types/env";
 
 export async function handleCreateCart(supabase: SupabaseClient): Promise<Response> {
 	try {
@@ -49,7 +51,8 @@ export async function handleCreateCart(supabase: SupabaseClient): Promise<Respon
 export async function handleAddToCart(
 	cartId: string,
 	request: Request,
-	supabase: SupabaseClient
+	supabase: SupabaseClient,
+	env?: Env
 ): Promise<Response> {
 	try {
 		// Soportar tanto números como UUIDs
@@ -90,6 +93,7 @@ export async function handleAddToCart(
 		const body = (await request.json()) as {
 			product_variant_id: number;
 			qty: number;
+			conversation_id?: number;
 		};
 
 		if (!body.product_variant_id || !body.qty || body.qty <= 0) {
@@ -111,7 +115,12 @@ export async function handleAddToCart(
 				`
 				id,
 				stock,
-				products (id, name, price)
+				products (
+					id,
+					name,
+					price,
+					categories (id, name)
+				)
 			`
 			)
 			.eq("id", body.product_variant_id)
@@ -220,6 +229,20 @@ export async function handleAddToCart(
 					headers: { "Content-Type": "application/json" },
 				}
 			);
+		}
+
+		// Agregar etiqueta en Chatwoot si hay conversationId y env
+		if (body.conversation_id && env) {
+			try {
+				const categoryName = (variant as any).products?.categories?.name;
+				if (categoryName) {
+					await addConversationLabels(body.conversation_id, [categoryName], env);
+					console.log(`✅ Etiqueta "${categoryName}" agregada a la conversación ${body.conversation_id}`);
+				}
+			} catch (labelError) {
+				console.error("⚠️ Error agregando etiqueta en Chatwoot:", labelError);
+				// No fallar el request si falla la etiqueta
+			}
 		}
 
 		return new Response(

@@ -162,8 +162,9 @@ export function registerDatabaseTools(server: McpServer, getBaseUrl: () => strin
 			cartId: z.union([z.number(), z.string()]).describe("ID del carrito (puede ser número o UUID)"),
 			productVariantId: z.number().describe("ID de la variante del producto (incluye color y talla)"),
 			qty: z.number().min(1).describe("Cantidad del producto"),
+			conversationId: z.number().optional().describe("ID de la conversación de Chatwoot (opcional, para agregar etiquetas automáticamente)"),
 		},
-		async ({ cartId, productVariantId, qty }) => {
+		async ({ cartId, productVariantId, qty, conversationId }) => {
 			try {
 				const baseUrl = getBaseUrl();
 				const response = await fetch(`${baseUrl}/api/carts/${cartId}/items`, {
@@ -174,6 +175,7 @@ export function registerDatabaseTools(server: McpServer, getBaseUrl: () => strin
 					body: JSON.stringify({
 						product_variant_id: productVariantId,
 						qty,
+						conversation_id: conversationId,
 					}),
 				});
 
