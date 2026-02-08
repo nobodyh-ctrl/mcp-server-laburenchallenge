@@ -13,6 +13,7 @@ import {
 } from "./api/carts";
 import { handleGetOrCreateClient } from "./api/clients";
 import { handleChatwootWebhook } from "./api/chatwoot";
+import { handleChatwootAdapterWebhook } from "./api/chatwoot-adapter";
 import type { Env } from "./types/env";
 
 // Define our MCP agent with Supabase and Chatwoot tools
@@ -40,8 +41,13 @@ export default {
 		const url = new URL(request.url);
 		const supabase = createSupabaseClient(env);
 
-		// Chatwoot webhook
+		// Chatwoot webhook adaptador (recibe de Chatwoot, llama al agente, responde a Chatwoot)
 		if (url.pathname === "/api/chatwoot/webhook" && request.method === "POST") {
+			return handleChatwootAdapterWebhook(request, env);
+		}
+
+		// Chatwoot webhook debug (solo para testing)
+		if (url.pathname === "/api/chatwoot/webhook-debug" && request.method === "POST") {
 			return handleChatwootWebhook(request, env);
 		}
 
