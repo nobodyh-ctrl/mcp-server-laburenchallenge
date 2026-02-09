@@ -101,6 +101,29 @@ export async function addConversationLabels(
 	env: Env
 ): Promise<void> {
 	try {
+		// Primero obtener las etiquetas actuales de la conversación
+		const getResponse = await fetch(
+			`${env.CHATWOOT_URL}/api/v1/accounts/${env.CHATWOOT_ACCOUNT_ID}/conversations/${conversationId}`,
+			{
+				method: "GET",
+				headers: {
+					api_access_token: env.CHATWOOT_API_TOKEN,
+				},
+			}
+		);
+
+		let existingLabels: string[] = [];
+		if (getResponse.ok) {
+			const conversation = (await getResponse.json()) as { labels?: string[] };
+			existingLabels = conversation.labels || [];
+			console.log(`📋 Etiquetas actuales: ${existingLabels.join(", ") || "ninguna"}`);
+		}
+
+		// Combinar etiquetas existentes con las nuevas (sin duplicados)
+		const allLabels = [...new Set([...existingLabels, ...labels])];
+		console.log(`📋 Etiquetas a enviar: ${allLabels.join(", ")}`);
+
+		// Enviar todas las etiquetas (existentes + nuevas)
 		const response = await fetch(
 			`${env.CHATWOOT_URL}/api/v1/accounts/${env.CHATWOOT_ACCOUNT_ID}/conversations/${conversationId}/labels`,
 			{
@@ -109,7 +132,7 @@ export async function addConversationLabels(
 					"Content-Type": "application/json",
 					api_access_token: env.CHATWOOT_API_TOKEN,
 				},
-				body: JSON.stringify({ labels }),
+				body: JSON.stringify({ labels: allLabels }),
 			}
 		);
 
