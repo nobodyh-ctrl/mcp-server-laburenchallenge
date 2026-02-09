@@ -7,8 +7,9 @@ export function registerChatwootTools(server: McpServer, getBaseUrl: () => strin
 		"request_human_agent",
 		{
 			conversationId: z.number().describe("ID de la conversación de Chatwoot"),
+			reason: z.enum(["reembolso", "producto_danado", "otros"]).describe("Motivo por el cual el cliente solicita hablar con un humano: 'reembolso' para solicitudes de devolución de dinero, 'producto_danado' si el producto llegó dañado o defectuoso, 'otros' para cualquier otro motivo"),
 		},
-		async ({ conversationId }) => {
+		async ({ conversationId, reason }) => {
 			try {
 				const baseUrl = getBaseUrl();
 				const response = await fetch(`${baseUrl}/api/chatwoot/request-human`, {
@@ -18,6 +19,7 @@ export function registerChatwootTools(server: McpServer, getBaseUrl: () => strin
 					},
 					body: JSON.stringify({
 						conversation_id: conversationId,
+						reason: reason,
 					}),
 				});
 

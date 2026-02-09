@@ -12,6 +12,7 @@ interface ChatwootAutomationWebhook {
 		sender: {
 			id: number;
 			name: string;
+			type?: string; // "contact", "bot", "system"
 			phone_number?: string;
 			email?: string;
 		};
@@ -20,6 +21,7 @@ interface ChatwootAutomationWebhook {
 		sender?: {
 			id: number;
 			name: string;
+			type?: string;
 			phone_number?: string;
 			email?: string;
 		};
@@ -60,6 +62,12 @@ export async function handleChatwootAdapterWebhook(
 
 		const messageContent = message.content;
 		const sender = message.sender || webhook.meta?.sender;
+
+		// Filtrar mensajes que no sean de usuarios (evitar procesar mensajes del bot o sistema)
+		if (!sender || sender.type === "bot" || sender.type === "system") {
+			console.log("⏭️  Mensaje del bot o sistema - ignorado");
+			return new Response("OK - Bot/System message", { status: 200 });
+		}
 
 		console.log(`💬 Mensaje de ${sender?.name}: ${messageContent}`);
 		console.log(`📋 Conversation ID: ${conversationId}`);

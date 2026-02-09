@@ -8,6 +8,7 @@ export async function handleRequestHumanAgent(
 	try {
 		const body = (await request.json()) as {
 			conversation_id: number;
+			reason?: "reembolso" | "producto_danado" | "otros";
 		};
 
 		if (!body.conversation_id) {
@@ -22,7 +23,24 @@ export async function handleRequestHumanAgent(
 			);
 		}
 
+		// Validar que el reason sea uno de los valores permitidos
+		const validReasons = ["reembolso", "producto_danado", "otros"];
+		if (body.reason && !validReasons.includes(body.reason)) {
+			return new Response(
+				JSON.stringify({
+					error: `Motivo inválido. Debe ser uno de: ${validReasons.join(", ")}`,
+				}),
+				{
+					status: 400,
+					headers: { "Content-Type": "application/json" },
+				}
+			);
+		}
+
 		console.log(`👤 Solicitud de agente humano para conversación ${body.conversation_id}`);
+		if (body.reason) {
+			console.log(`📋 Motivo: ${body.reason}`);
+		}
 
 		// 1. Actualizar custom attribute bot=false
 		const updated = await updateConversationAttributes(
@@ -43,10 +61,15 @@ export async function handleRequestHumanAgent(
 			);
 		}
 
-		// 2. Agregar etiqueta "humano"
-		await addConversationLabels(body.conversation_id, ["humano"], env);
+		// 2. Agregar etiquetas: "humano" y el motivo (si se proporcionó)
+		const labels = ["humano"];
+		if (body.reason) {
+			labels.push(body.reason);
+		}
+		await addConversationLabels(body.conversation_id, labels, env);
 
 		console.log(`✅ Conversación ${body.conversation_id} transferida a agente humano`);
+		console.log(`🏷️ Etiquetas agregadas: ${labels.join(", ")}`);
 
 		return new Response(
 			JSON.stringify({
