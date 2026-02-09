@@ -8,6 +8,7 @@ export async function handleGetOrCreateClient(
 		const body = (await request.json()) as {
 			name: string;
 			email: string;
+			phone?: string;
 		};
 
 		if (!body.name || !body.email) {
@@ -32,16 +33,29 @@ export async function handleGetOrCreateClient(
 		let clientId: number;
 
 		if (existingClient) {
-			// Cliente existe
+			// Cliente existe - actualizar phone si se proporciona
 			clientId = existingClient.id;
+
+			if (body.phone) {
+				await supabase
+					.from("clients")
+					.update({ phone: body.phone })
+					.eq("id", clientId);
+			}
 		} else {
 			// Crear nuevo cliente
+			const clientData: { name: string; email: string; phone?: string } = {
+				name: body.name,
+				email: body.email,
+			};
+
+			if (body.phone) {
+				clientData.phone = body.phone;
+			}
+
 			const { data: newClient, error: createError } = await supabase
 				.from("clients")
-				.insert({
-					name: body.name,
-					email: body.email,
-				})
+				.insert(clientData)
 				.select()
 				.single();
 

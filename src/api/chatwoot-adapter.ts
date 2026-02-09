@@ -63,12 +63,23 @@ export async function handleChatwootAdapterWebhook(
 
 		console.log(`💬 Mensaje de ${sender?.name}: ${messageContent}`);
 		console.log(`📋 Conversation ID: ${conversationId}`);
+		console.log(`📞 Teléfono: ${sender?.phone_number || "No disponible"}`);
 
 		// Llamar al agente de Laburen usando el endpoint /query
 		console.log("📤 Llamando al agente Laburen...");
 
 		// Construir URL del agente usando variable de entorno
 		const laburenApiUrl = `https://dashboard.laburen.com/api/agents/${env.LABUREN_AGENT_ID}/query`;
+
+		// Construir contexto con información del cliente
+		let contextMessage = `Mensaje de WhatsApp de ${sender?.name || "Cliente"}`;
+		if (sender?.phone_number) {
+			contextMessage += `\nTeléfono: ${sender.phone_number}`;
+		}
+		if (sender?.email) {
+			contextMessage += `\nEmail: ${sender.email}`;
+		}
+		contextMessage += `\nConversation ID: ${conversationId}`;
 
 		const agentResponse = await fetch(laburenApiUrl, {
 			method: "POST",
@@ -81,7 +92,7 @@ export async function handleChatwootAdapterWebhook(
 				channel: "chatwoot",
 				conversationId: conversationId.toString(),
 				visitorId: sender?.phone_number || sender?.id.toString(),
-				context: `Mensaje de WhatsApp de ${sender?.name || "Cliente"}`,
+				context: contextMessage,
 			}),
 		});
 

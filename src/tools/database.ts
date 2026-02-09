@@ -386,8 +386,9 @@ export function registerDatabaseTools(server: McpServer, getBaseUrl: () => strin
 		{
 			name: z.string().describe("Nombre del cliente"),
 			email: z.string().email().describe("Email del cliente (debe ser válido y único)"),
+			phone: z.string().optional().describe("Teléfono del cliente (opcional)"),
 		},
-		async ({ name, email }) => {
+		async ({ name, email, phone }) => {
 			try {
 				const baseUrl = getBaseUrl();
 				const response = await fetch(`${baseUrl}/api/clients/get-or-create`, {
@@ -398,6 +399,7 @@ export function registerDatabaseTools(server: McpServer, getBaseUrl: () => strin
 					body: JSON.stringify({
 						name,
 						email,
+						phone,
 					}),
 				});
 
