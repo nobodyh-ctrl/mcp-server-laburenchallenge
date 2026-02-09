@@ -241,13 +241,21 @@ export async function handleAddToCart(
 				console.log(`🏷️ Garment type encontrado: "${garmentTypeName}"`);
 
 				if (garmentTypeName) {
-					// Normalizar el nombre para Chatwoot (solo letras, números, guiones y guiones bajos)
+					// Normalizar el nombre para Chatwoot:
+					// 1. Convertir a minúsculas
+					// 2. Reemplazar espacios por nada (sin guiones bajos)
+					// 3. Eliminar tildes y caracteres especiales
 					const normalizedLabel = garmentTypeName
-						.replace(/\s+/g, "_")  // Espacios → guiones bajos
-						.replace(/[^a-zA-Z0-9_-]/g, "")  // Eliminar caracteres especiales
-						.replace(/_{2,}/g, "_");  // Múltiples guiones bajos → uno solo
+						.toLowerCase()
+						.normalize("NFD")  // Descomponer caracteres acentuados
+						.replace(/[\u0300-\u036f]/g, "")  // Eliminar tildes
+						.replace(/\s+/g, "")  // Eliminar espacios
+						.replace(/[^a-z0-9_-]/g, "");  // Solo minúsculas, números, _ y -
 
+					console.log(`🏷️ Nombre original: "${garmentTypeName}"`);
+					console.log(`🏷️ Nombre normalizado: "${normalizedLabel}"`);
 					console.log(`📤 Llamando a addConversationLabels con conversationId: ${body.conversation_id}, label: ${normalizedLabel}`);
+
 					await addConversationLabels(body.conversation_id, [normalizedLabel], env);
 					console.log(`✅ Etiqueta "${normalizedLabel}" agregada a la conversación ${body.conversation_id}`);
 				} else {
