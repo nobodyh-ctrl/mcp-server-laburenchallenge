@@ -119,7 +119,7 @@ export async function handleAddToCart(
 					id,
 					name,
 					price,
-					categories (id, name)
+					garment_types (id, name)
 				)
 			`
 			)
@@ -234,10 +234,24 @@ export async function handleAddToCart(
 		// Agregar etiqueta en Chatwoot si hay conversationId y env
 		if (body.conversation_id && env) {
 			try {
-				const categoryName = (variant as any).products?.categories?.name;
-				if (categoryName) {
-					await addConversationLabels(body.conversation_id, [categoryName], env);
-					console.log(`✅ Etiqueta "${categoryName}" agregada a la conversación ${body.conversation_id}`);
+				console.log("🏷️ Intentando agregar etiqueta...");
+				console.log("📦 Variant data:", JSON.stringify(variant, null, 2));
+
+				const garmentTypeName = (variant as any).products?.garment_types?.name;
+				console.log(`🏷️ Garment type encontrado: "${garmentTypeName}"`);
+
+				if (garmentTypeName) {
+					// Normalizar el nombre para Chatwoot (solo letras, números, guiones y guiones bajos)
+					const normalizedLabel = garmentTypeName
+						.replace(/\s+/g, "_")  // Espacios → guiones bajos
+						.replace(/[^a-zA-Z0-9_-]/g, "")  // Eliminar caracteres especiales
+						.replace(/_{2,}/g, "_");  // Múltiples guiones bajos → uno solo
+
+					console.log(`📤 Llamando a addConversationLabels con conversationId: ${body.conversation_id}, label: ${normalizedLabel}`);
+					await addConversationLabels(body.conversation_id, [normalizedLabel], env);
+					console.log(`✅ Etiqueta "${normalizedLabel}" agregada a la conversación ${body.conversation_id}`);
+				} else {
+					console.log("⚠️ No se encontró garment type");
 				}
 			} catch (labelError) {
 				console.error("⚠️ Error agregando etiqueta en Chatwoot:", labelError);
