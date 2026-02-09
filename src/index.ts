@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { McpAgent } from "agents/mcp";
 import { createSupabaseClient } from "./config/supabase";
 import { registerDatabaseTools } from "./tools/database";
+import { registerChatwootTools } from "./tools/chatwoot-tools";
 // import { registerChatwootTools } from "./tools/chatwoot"; // DESHABILITADO - La plataforma maneja Chatwoot directamente (backup en chatwoot.ts.backup)
 import { handleGetProducts, handleGetProductById } from "./api/products";
 import {
@@ -14,6 +15,7 @@ import {
 import { handleGetOrCreateClient } from "./api/clients";
 import { handleChatwootWebhook } from "./api/chatwoot";
 import { handleChatwootAdapterWebhook } from "./api/chatwoot-adapter";
+import { handleRequestHumanAgent } from "./api/chatwoot-human";
 import type { Env } from "./types/env";
 
 // Define our MCP agent with Supabase and Chatwoot tools
@@ -30,7 +32,10 @@ export class MyMCP extends McpAgent {
 		// Registrar las tools de base de datos pasando la URL base
 		registerDatabaseTools(this.server, () => baseUrl);
 
-		// Tools de Chatwoot DESHABILITADAS
+		// Registrar las tools de Chatwoot (solicitar agente humano)
+		registerChatwootTools(this.server, () => baseUrl);
+
+		// Tools de Chatwoot antiguas DESHABILITADAS
 		// La plataforma (dashboard.laburen.com) maneja Chatwoot directamente
 		// Backup disponible en: src/tools/chatwoot.ts.backup
 	}
@@ -44,6 +49,11 @@ export default {
 		// Chatwoot webhook adaptador (recibe de Chatwoot, llama al agente, responde a Chatwoot)
 		if (url.pathname === "/api/chatwoot/webhook" && request.method === "POST") {
 			return handleChatwootAdapterWebhook(request, env);
+		}
+
+		// Chatwoot solicitar agente humano
+		if (url.pathname === "/api/chatwoot/request-human" && request.method === "POST") {
+			return handleRequestHumanAgent(request, env);
 		}
 
 		// Chatwoot webhook debug (solo para testing)

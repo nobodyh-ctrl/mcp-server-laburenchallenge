@@ -148,6 +148,69 @@ export async function addConversationLabels(
 	}
 }
 
+// Función para obtener custom attributes de una conversación
+export async function getConversationAttributes(
+	conversationId: number,
+	env: Env
+): Promise<Record<string, any>> {
+	try {
+		const response = await fetch(
+			`${env.CHATWOOT_URL}/api/v1/accounts/${env.CHATWOOT_ACCOUNT_ID}/conversations/${conversationId}`,
+			{
+				method: "GET",
+				headers: {
+					api_access_token: env.CHATWOOT_API_TOKEN,
+				},
+			}
+		);
+
+		if (!response.ok) {
+			const errorText = await response.text();
+			console.error(`❌ Error obteniendo conversación: ${response.status} - ${errorText}`);
+			return {};
+		}
+
+		const conversation = (await response.json()) as { custom_attributes?: Record<string, any> };
+		return conversation.custom_attributes || {};
+	} catch (error) {
+		console.error("❌ Error en getConversationAttributes:", error);
+		return {};
+	}
+}
+
+// Función para actualizar custom attributes de una conversación
+export async function updateConversationAttributes(
+	conversationId: number,
+	attributes: Record<string, any>,
+	env: Env
+): Promise<boolean> {
+	try {
+		const response = await fetch(
+			`${env.CHATWOOT_URL}/api/v1/accounts/${env.CHATWOOT_ACCOUNT_ID}/conversations/${conversationId}/custom_attributes`,
+			{
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					api_access_token: env.CHATWOOT_API_TOKEN,
+				},
+				body: JSON.stringify({ custom_attributes: attributes }),
+			}
+		);
+
+		if (!response.ok) {
+			const errorText = await response.text();
+			console.error(`❌ Error actualizando custom attributes: ${response.status} - ${errorText}`);
+			return false;
+		}
+
+		console.log(`✅ Custom attributes actualizados: ${JSON.stringify(attributes)}`);
+		return true;
+	} catch (error) {
+		console.error("❌ Error en updateConversationAttributes:", error);
+		return false;
+	}
+}
+
 export async function updateConversationStatus(
 	conversationId: number,
 	status: "open" | "resolved" | "pending",

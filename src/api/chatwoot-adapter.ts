@@ -1,5 +1,5 @@
 import type { Env } from "../types/env";
-import { sendChatwootMessage } from "./chatwoot";
+import { sendChatwootMessage, getConversationAttributes } from "./chatwoot";
 
 // Webhook payload que viene de Chatwoot (automation rule)
 interface ChatwootAutomationWebhook {
@@ -64,6 +64,18 @@ export async function handleChatwootAdapterWebhook(
 		console.log(`💬 Mensaje de ${sender?.name}: ${messageContent}`);
 		console.log(`📋 Conversation ID: ${conversationId}`);
 		console.log(`📞 Teléfono: ${sender?.phone_number || "No disponible"}`);
+
+		// Verificar si el bot está habilitado para esta conversación
+		console.log("🔍 Verificando estado del bot...");
+		const customAttributes = await getConversationAttributes(conversationId, env);
+		const botEnabled = customAttributes.bot !== false; // Por defecto true si no existe
+
+		console.log(`🤖 Bot enabled: ${botEnabled}`);
+
+		if (!botEnabled) {
+			console.log("⏭️  Bot deshabilitado - conversación asignada a humano");
+			return new Response("OK - Bot deshabilitado", { status: 200 });
+		}
 
 		// Llamar al agente de Laburen usando el endpoint /query
 		console.log("📤 Llamando al agente Laburen...");
