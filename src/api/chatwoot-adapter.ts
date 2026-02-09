@@ -1,5 +1,5 @@
 import type { Env } from "../types/env";
-import { sendChatwootMessage, getConversationAttributes } from "./chatwoot";
+import { sendChatwootMessage, getConversationAttributes, updateConversationAttributes } from "./chatwoot";
 
 // Webhook payload que viene de Chatwoot (automation rule)
 interface ChatwootAutomationWebhook {
@@ -68,8 +68,14 @@ export async function handleChatwootAdapterWebhook(
 		// Verificar si el bot está habilitado para esta conversación
 		console.log("🔍 Verificando estado del bot...");
 		const customAttributes = await getConversationAttributes(conversationId, env);
-		const botEnabled = customAttributes.bot !== false; // Por defecto true si no existe
 
+		// Si el custom attribute 'bot' no existe, inicializarlo en true (primera vez)
+		if (customAttributes.bot === undefined) {
+			await updateConversationAttributes(conversationId, { bot: true }, env);
+			console.log("✅ Custom attribute 'bot' inicializado en true");
+		}
+
+		const botEnabled = customAttributes.bot !== false;
 		console.log(`🤖 Bot enabled: ${botEnabled}`);
 
 		if (!botEnabled) {
