@@ -77,6 +77,7 @@ Este servidor MCP permite a agentes de IA gestionar operaciones de e-commerce a 
 │  - get_cart                  │
 │  - update_cart_item          │
 │  - remove_from_cart          │
+│  - request_human_agent       │
 └──────────────────────────────┘
 ```
 
@@ -100,12 +101,14 @@ Este servidor MCP permite a agentes de IA gestionar operaciones de e-commerce a 
 - **Gestión de Carritos**: Crear, actualizar y administrar carritos de compra
 - **Gestión de Clientes**: Seguimiento de clientes por email y teléfono
 - **Control de Inventario**: Disponibilidad de stock en tiempo real
+- **Etiquetado Automático**: Agregar etiquetas en Chatwoot según tipo de prenda agregada al carrito
 
 ### Capacidades de Integración
 - **WhatsApp Business**: Comunicación nativa con clientes
 - **CRM Chatwoot**: Historial de conversaciones y datos de clientes
 - **Soporte para Agentes IA**: Interfaz completa de herramientas MCP
 - **API REST**: Endpoints HTTP alternativos para documentación
+- **Transferencia a Humanos**: Sistema de handoff de bot a agente humano con categorización de motivos
 
 ### Características Técnicas
 - **Soporte UUID**: Identificadores de carrito amigables con privacidad
@@ -193,7 +196,16 @@ Información central de productos.
 | name | text | Nombre del producto |
 | description | text | Descripción del producto |
 | price | numeric | Precio base |
+| garment_type_id | integer | FK a garment_types |
 | created_at | timestamp | Fecha de creación |
+
+#### `garment_types`
+Tipos de prenda para categorización y etiquetado.
+
+| Columna | Tipo | Descripción |
+|---------|------|-------------|
+| id | integer | Clave primaria |
+| name | text | Nombre del tipo de prenda (ej: "Camiseta", "Pantalón") |
 
 #### `product_variants`
 Variaciones de productos con color, talle y stock.
@@ -220,8 +232,9 @@ Información de clientes.
 | Columna | Tipo | Descripción |
 |---------|------|-------------|
 | id | integer | Clave primaria |
+| name | text | Nombre del cliente |
 | email | text | Email del cliente (único) |
-| phone | text | Teléfono del cliente |
+| phone | text | Teléfono del cliente (auto-capturado de WhatsApp) |
 | created_at | timestamp | Fecha de registro |
 
 #### `carts`
@@ -231,6 +244,7 @@ Encabezados de carritos de compra.
 |---------|------|-------------|
 | id | uuid | Clave primaria (UUID para privacidad) |
 | client_id | integer | FK a clients (opcional) |
+| status | text | Estado del carrito: "active", "completed", "abandoned" |
 | created_at | timestamp | Fecha de creación del carrito |
 
 #### `cart_items`
@@ -387,6 +401,7 @@ Obtener cliente existente o crear uno nuevo.
 Solicitud:
 ```json
 {
+  "name": "Juan Pérez",
   "email": "cliente@example.com",
   "phone": "+5491123456789"
 }
@@ -395,10 +410,9 @@ Solicitud:
 Respuesta:
 ```json
 {
-  "id": 1,
-  "email": "cliente@example.com",
-  "phone": "+5491123456789",
-  "created_at": "2026-02-08T12:00:00Z"
+  "clientId": 1,
+  "cartId": "550e8400-e29b-41d4-a716-446655440000",
+  "cartStatus": "active"
 }
 ```
 
@@ -452,10 +466,26 @@ Agregar artículo al carrito.
 Solicitud:
 ```json
 {
-  "productVariantId": 1,
-  "quantity": 2
+  "product_variant_id": 1,
+  "qty": 2,
+  "conversation_id": 123  // Opcional - para agregar etiquetas automáticamente
 }
 ```
+
+Respuesta:
+```json
+{
+  "message": "Producto agregado al carrito exitosamente",
+  "data": {
+    "id": 1,
+    "cart_id": "550e8400-e29b-41d4-a716-446655440000",
+    "product_variant_id": 1,
+    "qty": 2
+  }
+}
+```
+
+**Nota**: Si se proporciona `conversation_id`, el sistema agrega automáticamente una etiqueta en Chatwoot con el tipo de prenda (normalizado a minúsculas sin tildes).
 
 **PATCH /api/carts/:cartId/items/:itemId**
 Actualizar cantidad de artículo en carrito.
@@ -470,7 +500,7 @@ Solicitud:
 **DELETE /api/carts/:cartId/items/:itemId**
 Eliminar artículo del carrito.
 
-#### Webhook de Chatwoot
+#### Chatwoot
 
 **POST /api/chatwoot/webhook**
 Recibe webhooks de automation rules de Chatwoot.
@@ -486,6 +516,7 @@ Solicitud (desde Chatwoot):
       "message_type": 0,
       "sender": {
         "name": "Cliente",
+        "type": "contact",
         "phone_number": "+5491123456789"
       }
     }
@@ -494,6 +525,36 @@ Solicitud (desde Chatwoot):
 ```
 
 Respuesta: `200 OK`
+
+**Características del webhook**:
+- Filtra mensajes del bot y sistema (solo procesa mensajes de usuarios)
+- Verifica custom attribute `bot` (si `false`, no responde - conversación en manos de humano)
+- Auto-inicializa `bot=true` en conversaciones nuevas
+- Extrae teléfono automáticamente de WhatsApp
+
+**POST /api/chatwoot/request-human**
+Transferir conversación a agente humano.
+
+Solicitud:
+```json
+{
+  "conversation_id": 123,
+  "reason": "reembolso"  // "reembolso" | "producto_danado" | "otros"
+}
+```
+
+Respuesta:
+```json
+{
+  "message": "La conversación ha sido transferida a un agente humano. Un miembro de nuestro equipo te atenderá pronto."
+}
+```
+
+**Comportamiento**:
+- Actualiza custom attribute `bot=false`
+- Agrega etiqueta "humano"
+- Agrega etiqueta del motivo especificado
+- El webhook deja de responder automáticamente a mensajes de esa conversación
 
 ---
 
@@ -532,17 +593,18 @@ Parámetros:
 Retorna: Producto con todas sus variantes.
 
 #### `get_or_create_client`
-Obtener cliente existente o crear uno nuevo.
+Obtener cliente existente o crear uno nuevo. Si el cliente existe, actualiza el teléfono. También crea o recupera un carrito activo para el cliente.
 
 Parámetros:
 ```typescript
 {
+  name: string,
   email: string,
   phone?: string
 }
 ```
 
-Retorna: Objeto de cliente.
+Retorna: Objeto con `clientId`, `cartId` y `cartStatus`.
 
 #### `create_cart`
 Crear un nuevo carrito de compras.
@@ -557,18 +619,19 @@ Parámetros:
 Retorna: Objeto de carrito con UUID.
 
 #### `add_to_cart`
-Agregar variante de producto al carrito.
+Agregar variante de producto al carrito. Si se proporciona `conversationId`, agrega automáticamente una etiqueta en Chatwoot con el tipo de prenda.
 
 Parámetros:
 ```typescript
 {
   cartId: number | string,  // Acepta UUID o número
   productVariantId: number,
-  qty: number
+  qty: number,
+  conversationId?: number  // Opcional - para etiquetado automático
 }
 ```
 
-Retorna: Confirmación de éxito.
+Retorna: Confirmación de éxito y datos del item agregado.
 
 #### `get_cart`
 Recuperar contenidos del carrito.
@@ -609,6 +672,25 @@ Parámetros:
 
 Retorna: Confirmación de éxito.
 
+#### `request_human_agent`
+Transferir conversación a un agente humano. El agente debe preguntar primero al cliente el motivo y luego llamar a este tool con el motivo correspondiente.
+
+Parámetros:
+```typescript
+{
+  conversationId: number,
+  reason: "reembolso" | "producto_danado" | "otros"
+}
+```
+
+Retorna: Mensaje de confirmación para el cliente.
+
+**Comportamiento**:
+- Actualiza el custom attribute `bot=false` en Chatwoot
+- Agrega etiqueta "humano" a la conversación
+- Agrega etiqueta del motivo especificado
+- El sistema deja de responder automáticamente a esa conversación
+
 ---
 
 ## Instalación y Despliegue
@@ -648,6 +730,7 @@ npx wrangler secret put CHATWOOT_API_TOKEN
 
 # Agente Laburen
 npx wrangler secret put LABUREN_API_KEY
+npx wrangler secret put LABUREN_AGENT_ID
 ```
 
 **Importante**: Al configurar variables de Chatwoot, asegurate de que NO haya espacios al final en los nombres de los secretos.
@@ -663,11 +746,33 @@ Tu worker será desplegado en:
 
 ### Configurar Chatwoot
 
-1. **Crear Automation Rule**
+1. **Crear Custom Attribute**
+   - Ir a Settings → Custom Attributes → Conversation
+   - Crear nuevo atributo:
+     - Display Name: "Bot"
+     - Key: `bot`
+     - Type: Checkbox
+     - Description: "Indica si el bot está habilitado para esta conversación"
+
+2. **Crear Labels (Etiquetas)**
+   - Ir a Settings → Labels
+   - Crear las siguientes etiquetas manualmente (opcional, para personalizar colores):
+     - `humano` - Para conversaciones transferidas a agentes humanos
+     - `reembolso` - Cliente solicita reembolso
+     - `producto_danado` - Producto llegó dañado
+     - `otros` - Otros motivos
+     - Etiquetas de tipos de prendas (ej: `camiseta`, `pantalon`, `sudadera`, etc.)
+
+3. **Deshabilitar Bot Nativo**
+   - Ir a Settings → Inboxes → [Tu inbox de WhatsApp] → Configuration
+   - En "Agent Bot", seleccionar "Disable"
+   - Esto previene respuestas duplicadas
+
+4. **Crear Automation Rule**
    - Ir a Settings → Automations → Rules
    - Crear nueva regla
 
-2. **Configurar Regla**
+5. **Configurar Regla**
    - **Evento**: Message Created
    - **Condiciones**:
      - Inbox = Tu inbox de WhatsApp
@@ -678,7 +783,7 @@ Tu worker será desplegado en:
      - URL: `https://mcp-server-laburenchallenge.<tu-cuenta>.workers.dev/api/chatwoot/webhook`
      - Headers: `{"Content-Type": "application/json"}`
 
-3. **Guardar y Testear**
+6. **Guardar y Testear**
 
 ### Configurar Agente
 
@@ -692,17 +797,71 @@ Herramientas disponibles:
 - get_product_details: Obtener información detallada de productos
 - get_or_create_client: Registrar o recuperar cliente
 - create_cart: Inicializar carrito de compras
-- add_to_cart: Agregar artículos al carrito
+- add_to_cart: Agregar artículos al carrito (usa conversationId para etiquetado automático)
 - get_cart: Ver contenidos del carrito
 - update_cart_item: Modificar cantidad de artículos
 - remove_from_cart: Eliminar artículos
+- request_human_agent: Transferir conversación a agente humano
 
 Importante:
 - NO uses send_chatwoot_message ni ninguna herramienta de Chatwoot
 - Simplemente responde con texto - el sistema envía automáticamente tu respuesta al cliente
 - Siempre sé amable y servicial
-- Pregunta por el email para crear el perfil del cliente
 - Guía a los clientes en la selección de productos y proceso de compra
+
+## ⚠️ REGLAS CRÍTICAS PARA GESTIÓN DE CLIENTES
+
+### ❌ NUNCA hacer esto:
+- NO llames a get_or_create_client hasta tener nombre y email REALES proporcionados por el cliente
+- NO uses emails falsos como "example@email.com", "test@test.com" o similares
+- NO uses el nombre del contacto de WhatsApp como nombre del cliente
+- NO asumas datos del cliente
+
+### ✅ FLUJO CORRECTO para clientes nuevos:
+**PASO 1**: Saludar y ayudar con consultas de productos
+**PASO 2**: Cuando el cliente quiera comprar, pedir nombre y email reales
+**PASO 3**: Esperar respuesta con datos REALES del cliente
+**PASO 4**: Recién ahora llamar a get_or_create_client con datos REALES
+**PASO 5**: Continuar con la venta usando el cartId retornado
+
+### ✅ FLUJO para add_to_cart:
+- SIEMPRE pasar el conversationId cuando agregues productos al carrito
+- Esto permite que el sistema agregue etiquetas automáticamente en Chatwoot
+- Ejemplo: add_to_cart({ cartId: "uuid", productVariantId: 1, qty: 1, conversationId: 123 })
+
+## 🤝 TRANSFERENCIA A AGENTE HUMANO
+
+Cuando el cliente solicite hablar con un humano, seguir este flujo:
+
+### PASO 1: Preguntar el motivo
+```
+Entiendo que prefieres hablar con un agente humano. Para poder ayudarte mejor, por favor indícame el motivo:
+
+1️⃣ **Reembolso** - Quieres solicitar una devolución de dinero
+2️⃣ **Producto dañado** - El producto llegó dañado o defectuoso
+3️⃣ **Otros** - Otro motivo
+
+Por favor responde con el número o el nombre de la opción.
+```
+
+### PASO 2: Clasificar la respuesta
+- Si menciona "reembolso", "devolución", "devolver dinero", "cancelar" → usa reason: "reembolso"
+- Si menciona "dañado", "roto", "defectuoso", "mal estado", "llegó mal" → usa reason: "producto_danado"
+- Para cualquier otro motivo → usa reason: "otros"
+
+### PASO 3: Llamar al tool
+```typescript
+request_human_agent({
+  conversationId: [conversation_id],
+  reason: [reason clasificado]
+})
+```
+
+### PASO 4: Confirmar al cliente
+Después de llamar al tool, confirma:
+```
+✅ Perfecto, he transferido tu conversación a un agente humano que te ayudará con [el motivo]. Un miembro de nuestro equipo te atenderá en breve.
+```
 ```
 
 ---
@@ -719,6 +878,7 @@ Importante:
 | `CHATWOOT_ACCOUNT_ID` | ID de cuenta Chatwoot | `88` |
 | `CHATWOOT_API_TOKEN` | Token de acceso API Chatwoot | `xxx` |
 | `LABUREN_API_KEY` | Clave API plataforma Laburen | `xxx` |
+| `LABUREN_AGENT_ID` | ID del agente en Laburen | `xxx` |
 
 ### Configuración de Chatwoot
 
@@ -763,18 +923,37 @@ https://<worker-url>/api/chatwoot/webhook
 **Cliente**: "Quiero la camiseta M"
 
 **Flujo del Agente**:
-1. Llama a `get_or_create_client({ email: "cliente@example.com" })`
-2. Llama a `create_cart({ clientId: 1 })`
-3. Llama a `add_to_cart({ cartId: "uuid", productVariantId: 1, qty: 1 })`
-4. Responde: "Agregué la camiseta M a tu carrito"
+1. Agente: "Para continuar, necesito tu nombre y email"
+2. Cliente: "Me llamo Juan Pérez, mi email es juan@email.com"
+3. Llama a `get_or_create_client({ name: "Juan Pérez", email: "juan@email.com", phone: "+5491123456789" })`
+4. Recibe `{ clientId: 1, cartId: "uuid-abc", cartStatus: "active" }`
+5. Llama a `add_to_cart({ cartId: "uuid-abc", productVariantId: 1, qty: 1, conversationId: 123 })`
+6. Sistema agrega automáticamente etiqueta "camiseta" en Chatwoot
+7. Responde: "Agregué la camiseta M a tu carrito, Juan"
 
 ### Ejemplo 3: Ver Carrito
 
 **Cliente**: "Que tengo en el carrito?"
 
 **Flujo del Agente**:
-1. Llama a `get_cart({ cartId: "uuid" })`
+1. Llama a `get_cart({ cartId: "uuid-abc" })`
 2. Responde: "Tienes: 1x Camiseta Roja M ($1500). Total: $1500"
+
+### Ejemplo 4: Solicitud de Agente Humano
+
+**Cliente**: "Quiero hablar con un humano"
+
+**Flujo del Agente**:
+1. Agente: "Entiendo que prefieres hablar con un agente humano. ¿Cuál es el motivo?
+   1️⃣ Reembolso
+   2️⃣ Producto dañado
+   3️⃣ Otros"
+2. Cliente: "El producto llegó roto"
+3. Agente identifica: reason = "producto_danado"
+4. Llama a `request_human_agent({ conversationId: 123, reason: "producto_danado" })`
+5. Sistema actualiza `bot=false` y agrega etiquetas "humano" y "producto_danado"
+6. Responde: "✅ He transferido tu conversación a un agente humano. Te atenderán pronto."
+7. Bot deja de responder a esta conversación automáticamente
 
 ---
 
@@ -803,9 +982,17 @@ https://<worker-url>/api/chatwoot/webhook
 
 **Verificar**:
 - `npx wrangler tail` para ver logs
-- Verificar que `LABUREN_API_KEY` está configurada correctamente
+- Verificar que `LABUREN_API_KEY` y `LABUREN_AGENT_ID` están configuradas correctamente
 - Confirmar que el agente está conectado al servidor MCP
 - Verificar que el system prompt del agente incluye instrucciones de uso de herramientas
+- Verificar custom attribute `bot` en Chatwoot (debe ser `true` o no existir)
+
+#### 2.1. Bot responde dos veces
+
+**Síntomas**: El cliente recibe dos respuestas idénticas
+
+**Solución**: Deshabilitar el bot nativo de Chatwoot:
+- Settings → Inboxes → [WhatsApp Inbox] → Configuration → Agent Bot → Disable
 
 #### 3. Variables undefined
 
@@ -823,6 +1010,22 @@ https://<worker-url>/api/chatwoot/webhook
 **Síntomas**: `Invalid input: expected number, received string`
 
 **Solución**: Esto ya está manejado - las herramientas aceptan tanto formatos UUID como numéricos.
+
+#### 5. Labels no se agregan automáticamente
+
+**Síntomas**: No se agregan etiquetas al agregar productos al carrito
+
+**Verificar**:
+- Que el agente esté pasando `conversationId` al llamar a `add_to_cart`
+- Que las etiquetas estén creadas en Chatwoot (o dejar que se creen automáticamente)
+- Ver logs con `npx wrangler tail` para verificar el proceso de etiquetado
+- Verificar que los productos tienen `garment_type` asignado en la base de datos
+
+#### 6. Cliente creado con datos falsos
+
+**Síntomas**: Clientes en la DB con emails como "example@email.com"
+
+**Solución**: Actualizar el prompt del agente con las reglas de gestión de clientes (ver sección [Configurar Agente](#configurar-agente))
 
 ### Comandos de Debug
 
@@ -858,6 +1061,8 @@ curl -X POST https://tu-worker.workers.dev/api/chatwoot/webhook-debug \
 - ✅ Políticas RLS de Supabase deben ser configuradas
 - ⚠️ Sin autenticación en endpoint MCP (agregar si es necesario)
 - ✅ Webhook valida tipos de eventos
+- ✅ Webhook filtra mensajes del bot/sistema para prevenir loops
+- ✅ Custom attribute `bot` previene respuestas automáticas cuando hay agente humano
 
 ### Performance
 
